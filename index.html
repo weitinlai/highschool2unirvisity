@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高中升大學時程管理</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="timeline-header">
+            <h1>高中升大學時程管理</h1>
+            <p class="subtitle">點擊時間點查看詳細內容</p>
+        </div>
+        
+        <div class="timeline-wrapper">
+            <div class="timeline" id="timeline">
+                <!-- 時間軸內容將由 JavaScript 動態生成 -->
+            </div>
+        </div>
+        
+        <!-- 詳細內容彈出視窗 -->
+        <div class="modal" id="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div class="modal-body" id="modalBody">
+                    <!-- 詳細內容將由 JavaScript 動態生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 新增/編輯事件彈出視窗 -->
+        <div class="modal" id="editModal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div class="modal-body">
+                    <h2 id="editModalTitle">新增事件</h2>
+                    <form id="eventForm">
+                        <div class="form-group">
+                            <label for="eventId">事件ID：</label>
+                            <input type="text" id="eventId" name="id" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventPathway">升學管道：</label>
+                            <select id="eventPathway" name="pathway" required>
+                                <option value="特殊選才">特殊選才</option>
+                                <option value="申請入學">申請入學</option>
+                                <option value="分發入學">分發入學</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventItem">事件名稱：</label>
+                            <input type="text" id="eventItem" name="item" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventDate">日期：</label>
+                            <input type="date" id="eventDate" name="date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventPreparation">準備項目（每行一個）：</label>
+                            <textarea id="eventPreparation" name="preparation" rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="eventSchools">申請學校（每行一個）：</label>
+                            <textarea id="eventSchools" name="schools" rows="3"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">儲存</button>
+                            <button type="button" id="deleteEventBtn" class="btn btn-danger" style="display: none;">刪除</button>
+                            <button type="button" id="cancelEditBtn" class="btn btn-secondary">取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <h3>升學管道說明</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <span class="legend-color special-selection"></span>
+                    <span>特殊選才</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color application"></span>
+                    <span>申請入學</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color distribution"></span>
+                    <span>分發入學</span>
+                </div>
+            </div>
+            <div class="management-buttons">
+                <button id="addEventBtn" class="btn btn-primary">新增事件</button>
+                <button id="editModeBtn" class="btn btn-secondary">編輯模式</button>
+                <button id="exportDataBtn" class="btn btn-success">匯出資料</button>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>資料來源：<a href="https://nsdua.moe.edu.tw/#/" target="_blank">大學多元入學網</a></p>
+            <p>最後更新：<span id="lastUpdate"></span></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
