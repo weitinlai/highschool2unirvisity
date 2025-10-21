@@ -257,10 +257,8 @@ class TimelineManager {
         // 添加點擊事件
         timelineItem.addEventListener('click', (e) => {
             if (this.isEditMode) {
-                // 編輯模式下點擊編輯按鈕
-                if (e.target.classList.contains('edit-icon')) {
-                    this.openEditModal(item);
-                }
+                // 編輯模式下點擊整個項目都可以編輯
+                this.openEditModal(item);
             } else {
                 // 一般模式下顯示詳情
                 this.showModal(item);
@@ -484,6 +482,9 @@ class TimelineManager {
             editBtn.textContent = '退出編輯';
             editBtn.classList.remove('btn-secondary');
             editBtn.classList.add('btn-danger');
+            
+            // 顯示編輯模式提示
+            this.showEditModeTip();
         } else {
             document.body.classList.remove('edit-mode');
             editBtn.textContent = '編輯模式';
@@ -492,6 +493,53 @@ class TimelineManager {
         }
         
         this.renderTimeline();
+    }
+
+    // 顯示編輯模式提示
+    showEditModeTip() {
+        // 創建提示元素
+        const tip = document.createElement('div');
+        tip.id = 'editModeTip';
+        tip.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f39c12;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(243, 156, 18, 0.3);
+            z-index: 1000;
+            animation: slideDown 0.3s ease;
+        `;
+        tip.textContent = '編輯模式已開啟！點擊任何事件圓點來編輯或刪除';
+        
+        // 添加動畫樣式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideDown {
+                from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+                to { transform: translateX(-50%) translateY(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        document.body.appendChild(tip);
+        
+        // 3秒後自動隱藏
+        setTimeout(() => {
+            if (tip.parentNode) {
+                tip.style.animation = 'slideDown 0.3s ease reverse';
+                setTimeout(() => {
+                    if (tip.parentNode) {
+                        tip.remove();
+                    }
+                }, 300);
+            }
+        }, 3000);
     }
 
     // 開啟編輯視窗
@@ -577,21 +625,64 @@ class TimelineManager {
         this.closeEditModal();
         
         // 顯示成功訊息
-        alert('事件已儲存！');
+        const action = this.currentEditingItem ? '更新' : '新增';
+        this.showSuccessMessage(`事件已${action}成功！`);
     }
 
     // 刪除事件
     deleteEvent() {
-        if (this.currentEditingItem && confirm('確定要刪除這個事件嗎？')) {
-            const index = this.timelineData.timeline.findIndex(item => item.id === this.currentEditingItem.id);
-            if (index !== -1) {
-                this.timelineData.timeline.splice(index, 1);
-                this.renderTimeline();
-                this.updateLastUpdateTime();
-                this.closeEditModal();
-                alert('事件已刪除！');
+        if (this.currentEditingItem) {
+            const eventName = this.currentEditingItem.item;
+            const eventDate = this.formatDateShort(this.currentEditingItem.date);
+            
+            if (confirm(`確定要刪除這個事件嗎？\n\n事件：${eventName}\n日期：${eventDate}\n\n刪除後無法復原！`)) {
+                const index = this.timelineData.timeline.findIndex(item => item.id === this.currentEditingItem.id);
+                if (index !== -1) {
+                    this.timelineData.timeline.splice(index, 1);
+                    this.renderTimeline();
+                    this.updateLastUpdateTime();
+                    this.closeEditModal();
+                    
+                    // 顯示刪除成功提示
+                    this.showSuccessMessage(`事件「${eventName}」已刪除！`);
+                }
             }
         }
+    }
+
+    // 顯示成功訊息
+    showSuccessMessage(message) {
+        const successTip = document.createElement('div');
+        successTip.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2ecc71;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(46, 204, 113, 0.3);
+            z-index: 1000;
+            animation: slideDown 0.3s ease;
+        `;
+        successTip.textContent = message;
+        
+        document.body.appendChild(successTip);
+        
+        // 2秒後自動隱藏
+        setTimeout(() => {
+            if (successTip.parentNode) {
+                successTip.style.animation = 'slideDown 0.3s ease reverse';
+                setTimeout(() => {
+                    if (successTip.parentNode) {
+                        successTip.remove();
+                    }
+                }, 300);
+            }
+        }, 2000);
     }
 
     // 匯出資料

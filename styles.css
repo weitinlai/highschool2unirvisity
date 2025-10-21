@@ -623,6 +623,12 @@ body {
 /* 編輯模式樣式 */
 .edit-mode .timeline-item {
     position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.edit-mode .timeline-item:hover {
+    transform: scale(1.05);
 }
 
 .edit-mode .timeline-item::after {
@@ -641,6 +647,43 @@ body {
     font-size: 0.7rem;
     cursor: pointer;
     z-index: 10;
+    animation: editPulse 2s infinite;
+    box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
+}
+
+@keyframes editPulse {
+    0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
+    }
+    50% { 
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(243, 156, 18, 0.5);
+    }
+}
+
+/* 編輯模式提示 */
+.edit-mode .timeline-item::before {
+    content: '點擊編輯';
+    position: absolute;
+    top: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f39c12;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 15;
+}
+
+.edit-mode .timeline-item:hover::before {
+    opacity: 1;
 }
 
 /* 時間軸卡片 */
