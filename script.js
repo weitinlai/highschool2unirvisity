@@ -160,21 +160,9 @@ class TimelineManager {
         nowIndicator.className = 'timeline-now';
         
         // 計算現在時間在時間軸上的位置
-        const firstDate = new Date(sortedTimeline[0].date);
-        const lastDate = new Date(sortedTimeline[sortedTimeline.length - 1].date);
-        const totalDays = (lastDate - firstDate) / (1000 * 60 * 60 * 24);
-        const daysFromStart = (now - firstDate) / (1000 * 60 * 60 * 24);
+        const position = this.calculateEventPosition(now);
         
-        let position = 0;
-        if (daysFromStart >= 0 && daysFromStart <= totalDays) {
-            position = (daysFromStart / totalDays) * 100;
-        } else if (daysFromStart < 0) {
-            position = 0; // 現在時間在時間軸之前
-        } else {
-            position = 100; // 現在時間在時間軸之後
-        }
-        
-        nowIndicator.style.left = `${position}%`;
+        nowIndicator.style.left = `${position}px`;
         
         const nowLabel = document.createElement('div');
         nowLabel.className = 'timeline-now-label';
@@ -229,11 +217,10 @@ class TimelineManager {
             timelineItem.classList.add('urgent');
         }
 
-        // 計算位置（均勻分布在時間軸上）
-        const totalItems = this.timelineData.timeline.length;
-        const position = (index / (totalItems - 1)) * 100;
+        // 計算位置（基於當前時間範圍）
+        const position = this.calculateEventPosition(item.date);
         
-        timelineItem.style.left = `${position}%`;
+        timelineItem.style.left = `${position}px`;
         
         // 決定標籤位置（上下交替）
         const labelPosition = index % 2 === 0 ? 'top' : 'bottom';
@@ -435,6 +422,9 @@ class TimelineManager {
         setInterval(() => {
             this.updateNowIndicator();
         }, 60000); // 每分鐘更新一次
+        
+        // 初始化滑動控制
+        this.initTimelineScrolling();
         
         // 綁定管理按鈕事件
         document.getElementById('addEventBtn').addEventListener('click', () => {
@@ -706,6 +696,188 @@ class TimelineManager {
                 const now = new Date();
                 nowLabel.textContent = `現在 ${this.formatTime(now)}`;
             }
+        }
+    }
+
+    // 初始化時間軸滑動控制
+    initTimelineScrolling() {
+        // 初始化時間範圍（一個月）
+        this.currentStartDate = new Date();
+        this.currentStartDate.setDate(1); // 設為月初
+        this.currentEndDate = new Date(this.currentStartDate);
+        this.currentEndDate.setMonth(this.currentStartDate.getMonth() + 1);
+        this.currentEndDate.setDate(0); // 設為上個月的最後一天
+        
+        this.isDragging = false;
+        this.dragStartX = 0;
+        this.startOffset = 0;
+        
+        const wrapper = document.querySelector('.timeline-wrapper');
+        const scrollLeftBtn = document.getElementById('scrollLeft');
+        const scrollRightBtn = document.getElementById('scrollRight');
+        const scrollToNowBtn = document.getElementById('scrollToNow');
+        
+        if (!wrapper) {
+            return;
+        }
+        
+        // 綁定拖拽事件
+        this.bindDragEvents(wrapper);
+        
+        // 滑動控制按鈕
+        if (scrollLeftBtn) {
+            scrollLeftBtn.addEventListener('click', () => {
+                this.moveTimeRange(-7); // 向左移動7天
+            });
+        }
+        
+        if (scrollRightBtn) {
+            scrollRightBtn.addEventListener('click', () => {
+                this.moveTimeRange(7); // 向右移動7天
+            });
+        }
+        
+        if (scrollToNowBtn) {
+            scrollToNowBtn.addEventListener('click', () => {
+                this.scrollToNowTime();
+            });
+        }
+        
+        // 更新時間標籤
+        this.updateTimeLabels();
+    }
+
+    // 綁定拖拽事件
+    bindDragEvents(wrapper) {
+        // 滑鼠事件
+        wrapper.addEventListener('mousedown', (e) => {
+            this.startDrag(e.clientX);
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (this.isDragging) {
+                this.drag(e.clientX);
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            this.endDrag();
+        });
+        
+        // 觸控事件
+        wrapper.addEventListener('touchstart', (e) => {
+            this.startDrag(e.touches[0].clientX);
+            e.preventDefault();
+        });
+        
+        wrapper.addEventListener('touchmove', (e) => {
+            if (this.isDragging) {
+                this.drag(e.touches[0].clientX);
+                e.preventDefault();
+            }
+        });
+        
+        wrapper.addEventListener('touchend', () => {
+            this.endDrag();
+        });
+    }
+
+    // 開始拖拽
+    startDrag(clientX) {
+        this.isDragging = true;
+        this.dragStartX = clientX;
+        this.startOffset = this.timelineOffset;
+        document.body.style.cursor = 'grabbing';
+    }
+
+    // 拖拽中
+    drag(clientX) {
+        if (!this.isDragging) return;
+        
+        const deltaX = clientX - this.dragStartX;
+        const timeline = document.querySelector('.timeline');
+        const timelineWidth = timeline ? timeline.offsetWidth : 800;
+        
+        // 計算時間變化（基於拖拽距離）
+        const timeRatio = deltaX / timelineWidth;
+        const daysToMove = Math.round(timeRatio * 30); // 30天為一個月
+        
+        if (daysToMove !== 0) {
+            this.moveTimeRange(daysToMove);
+            this.dragStartX = clientX; // 重置起始點，避免累積誤差
+        }
+    }
+
+    // 結束拖拽
+    endDrag() {
+        this.isDragging = false;
+        document.body.style.cursor = '';
+    }
+
+    // 移動時間範圍
+    moveTimeRange(days) {
+        this.currentStartDate.setDate(this.currentStartDate.getDate() + days);
+        this.currentEndDate.setDate(this.currentEndDate.getDate() + days);
+        
+        // 更新時間標籤
+        this.updateTimeLabels();
+        
+        // 重新渲染時間軸
+        this.renderTimeline();
+    }
+
+    // 更新時間標籤
+    updateTimeLabels() {
+        const startDateElement = document.getElementById('startDate');
+        const endDateElement = document.getElementById('endDate');
+        
+        if (startDateElement && endDateElement) {
+            startDateElement.textContent = this.formatTime(this.currentStartDate);
+            endDateElement.textContent = this.formatTime(this.currentEndDate);
+        }
+    }
+
+    // 計算事件在時間軸上的位置
+    calculateEventPosition(eventDate) {
+        const eventDateObj = new Date(eventDate);
+        const startTime = this.currentStartDate.getTime();
+        const endTime = this.currentEndDate.getTime();
+        const eventTime = eventDateObj.getTime();
+        
+        // 計算事件在時間範圍內的位置比例
+        const timeRatio = (eventTime - startTime) / (endTime - startTime);
+        
+        // 轉換為像素位置（時間軸寬度）
+        const timeline = document.querySelector('.timeline');
+        const timelineWidth = timeline ? timeline.offsetWidth : 800;
+        
+        return timeRatio * timelineWidth;
+    }
+
+    // 滑動到現在時間位置
+    scrollToNowTime() {
+        const now = new Date();
+        
+        // 計算現在時間應該在哪個月的範圍內
+        const nowMonth = now.getMonth();
+        const nowYear = now.getFullYear();
+        
+        // 設置當前時間範圍為現在時間所在的月份
+        this.currentStartDate = new Date(nowYear, nowMonth, 1);
+        this.currentEndDate = new Date(nowYear, nowMonth + 1, 0);
+        
+        // 更新時間標籤和重新渲染
+        this.updateTimeLabels();
+        this.renderTimeline();
+    }
+
+    // 更新現在時間指示器位置
+    updateNowIndicatorPosition() {
+        const nowIndicator = document.querySelector('.timeline-now');
+        if (nowIndicator) {
+            // 現在時間指示器會自動跟隨滑動更新位置
+            // 這裡可以添加額外的視覺效果
         }
     }
 }

@@ -14,9 +14,22 @@
         </div>
         
         <div class="timeline-wrapper">
-            <div class="timeline" id="timeline">
-                <!-- 時間軸內容將由 JavaScript 動態生成 -->
+            <div class="timeline-container">
+                <div class="timeline-date-labels">
+                    <div class="timeline-start-date" id="startDate">2024/10/01</div>
+                    <div class="timeline-end-date" id="endDate">2024/10/31</div>
+                </div>
+                <div class="timeline" id="timeline">
+                    <!-- 時間軸內容將由 JavaScript 動態生成 -->
+                </div>
             </div>
+        </div>
+        
+        <!-- 滑動控制按鈕 -->
+        <div class="timeline-controls">
+            <button id="scrollLeft" class="scroll-btn" title="向左滑動">←</button>
+            <button id="scrollToNow" class="scroll-btn" title="滑動到現在時間">現在</button>
+            <button id="scrollRight" class="scroll-btn" title="向右滑動">→</button>
         </div>
         
         <!-- 詳細內容彈出視窗 -->

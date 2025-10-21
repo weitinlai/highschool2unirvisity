@@ -46,9 +46,81 @@ body {
     align-items: center;
     padding: 60px 0;
     min-height: 70vh;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: hidden;
     position: relative;
+    cursor: grab;
+    user-select: none;
+}
+
+.timeline-wrapper:active {
+    cursor: grabbing;
+}
+
+/* 時間軸容器 */
+.timeline-container {
+    position: relative;
+    width: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 時間標籤 */
+.timeline-date-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.timeline-start-date,
+.timeline-end-date {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 5px 10px;
+    border-radius: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+/* 滑動控制按鈕 */
+.timeline-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+.scroll-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(52, 152, 219, 0.9);
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 10px rgba(52, 152, 219, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scroll-btn:hover {
+    background: #3498db;
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+}
+
+.scroll-btn:active {
+    transform: scale(0.95);
 }
 
 /* 滾動指示器 */
@@ -79,10 +151,11 @@ body {
     height: 4px;
     background: linear-gradient(to right, #3498db, #2ecc71, #e67e22);
     border-radius: 2px;
-    min-width: 800px;
+    width: 100%; /* 使用容器的100%寬度 */
     display: flex;
     align-items: center;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: none; /* 移除過渡效果，讓拖拽更流暢 */
 }
 
 /* 時間軸起點和終點 */
@@ -162,9 +235,10 @@ body {
     top: 50%;
     transform: translateY(-50%);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: transform 0.1s ease-out;
     opacity: 0;
     animation: fadeInUp 0.6s ease forwards;
+    will-change: transform; /* 優化動畫性能 */
 }
 
 .timeline-item:nth-child(even) {
@@ -980,9 +1054,29 @@ body {
         -webkit-overflow-scrolling: touch;
     }
     
+    .timeline-container {
+        width: 90%;
+        max-width: 600px;
+    }
+    
     .timeline {
         height: 3px;
-        min-width: 600px;
+    }
+    
+    .timeline-date-labels {
+        font-size: 0.8rem;
+        margin-bottom: 15px;
+    }
+    
+    .timeline-controls {
+        top: 10px;
+        right: 10px;
+    }
+    
+    .scroll-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 1rem;
     }
     
     .timeline-dot {
