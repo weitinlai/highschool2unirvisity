@@ -26,7 +26,7 @@ class TimelineManager {
     // 載入時程資料
     async loadTimelineData() {
         try {
-            const response = await fetch('timeline-data.json');
+            const response = await fetch(`timeline-data.json?ts=${Date.now()}`, { cache: 'no-store' });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -151,6 +151,9 @@ class TimelineManager {
             const timelineItem = this.createTimelineItem(item, index);
             this.timelineContainer.appendChild(timelineItem);
         });
+
+        // 更新大學列表
+        this.renderUniversityList();
     }
 
     // 添加現在時間指示器
@@ -426,6 +429,9 @@ class TimelineManager {
         // 初始化滑動控制
         this.initTimelineScrolling();
         
+        // 初始化大學區域
+        this.initUniversitySection();
+        
         // 綁定管理按鈕事件
         document.getElementById('addEventBtn').addEventListener('click', () => {
             this.openEditModal();
@@ -550,6 +556,9 @@ class TimelineManager {
             deleteBtn.style.display = 'none';
             this.currentEditingItem = null;
             this.clearEditForm();
+            // 自動產生ID並填入表單
+            const newId = this.generateEventId();
+            document.getElementById('eventId').value = newId;
         }
         
         modal.style.display = 'block';
@@ -573,7 +582,9 @@ class TimelineManager {
 
     // 清空編輯表單
     clearEditForm() {
-        document.getElementById('eventId').value = '';
+        // 自動產生新的ID
+        const newId = this.generateEventId();
+        document.getElementById('eventId').value = newId;
         document.getElementById('eventPathway').value = '特殊選才';
         document.getElementById('eventItem').value = '';
         document.getElementById('eventDate').value = '';
@@ -581,11 +592,26 @@ class TimelineManager {
         document.getElementById('eventSchools').value = '';
     }
 
+    // 產生事件ID
+    generateEventId() {
+        const now = new Date();
+        const timestamp = now.getTime();
+        const random = Math.floor(Math.random() * 1000);
+        return `event-${timestamp}-${random}`;
+    }
+
     // 儲存事件
     saveEvent() {
         const formData = new FormData(document.getElementById('eventForm'));
+        
+        // 如果是新增事件且ID為空，自動產生ID
+        let eventId = formData.get('id');
+        if (!this.currentEditingItem && (!eventId || eventId.trim() === '')) {
+            eventId = this.generateEventId();
+        }
+        
         const eventData = {
-            id: formData.get('id'),
+            id: eventId,
             pathway: formData.get('pathway'),
             item: formData.get('item'),
             date: formData.get('date'),
@@ -879,6 +905,293 @@ class TimelineManager {
             // 現在時間指示器會自動跟隨滑動更新位置
             // 這裡可以添加額外的視覺效果
         }
+    }
+
+    // 初始化大學區域
+    initUniversitySection() {
+        // 確保時間軸資料已載入
+        if (this.timelineData && this.timelineData.timeline) {
+            this.renderUniversityList();
+        }
+        this.bindUniversityEvents();
+    }
+
+    // 渲染大學列表
+    renderUniversityList() {
+        const universityList = document.getElementById('universityList');
+        if (!universityList) return;
+
+        // 檢查時間軸資料是否存在
+        if (!this.timelineData || !this.timelineData.timeline) {
+            console.warn('時間軸資料尚未載入，跳過大學列表渲染');
+            return;
+        }
+
+        // 收集所有出現的大學
+        const universities = new Set();
+        this.timelineData.timeline.forEach(item => {
+            if (item.schools && Array.isArray(item.schools)) {
+                item.schools.forEach(school => {
+                    if (school.trim()) {
+                        universities.add(school.trim());
+                    }
+                });
+            }
+        });
+
+        // 清空現有內容
+        universityList.innerHTML = '';
+
+        // 創建大學項目
+        universities.forEach(university => {
+            const universityItem = document.createElement('div');
+            universityItem.className = 'university-item';
+            universityItem.textContent = university;
+            universityItem.setAttribute('data-university', university);
+            universityList.appendChild(universityItem);
+        });
+    }
+
+    // 綁定大學事件
+    bindUniversityEvents() {
+        // 綁定大學項目點擊事件
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('university-item')) {
+                const university = e.target.getAttribute('data-university');
+                this.showUniversityPage(university);
+            }
+        });
+
+        // 綁定返回按鈕事件 - 使用事件委託
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'backToHome') {
+                console.log('返回按鈕被點擊');
+                this.hideUniversityPage();
+            }
+        });
+    }
+
+    // 顯示大學專頁
+    showUniversityPage(universityName) {
+        const universityPage = document.getElementById('universityPage');
+        const universityNameElement = document.getElementById('universityName');
+        
+        if (!universityPage || !universityNameElement) {
+            console.error('找不到大學專頁元素');
+            return;
+        }
+
+        console.log('顯示大學專頁:', universityName);
+        console.log('大學專頁元素:', universityPage);
+
+        // 先顯示大學專頁 - 強制設置所有樣式
+        universityPage.style.cssText = `
+            display: block !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 1000 !important;
+            background: #f8f9fa !important;
+            overflow-y: auto !important;
+            padding: 20px !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        `;
+        console.log('大學專頁顯示狀態:', universityPage.style.display);
+        console.log('大學專頁位置:', universityPage.getBoundingClientRect());
+        console.log('大學專頁完整樣式:', universityPage.style.cssText);
+
+        // 設置大學名稱
+        universityNameElement.textContent = universityName;
+
+        // 填充大學專頁內容
+        this.populateUniversityPage(universityName);
+        
+        // 不再隱藏整個主容器，避免同容器下的 universityPage 一起被隱藏
+        // 僅顯示大學專頁本身即可覆蓋主畫面
+    }
+
+    // 隱藏大學專頁
+    hideUniversityPage() {
+        console.log('隱藏大學專頁');
+        const universityPage = document.getElementById('universityPage');
+        if (universityPage) {
+            universityPage.style.display = 'none';
+        }
+        
+        // 顯示主頁面
+        const container = document.querySelector('.container');
+        if (container) {
+            container.style.display = 'block';
+        }
+        console.log('已返回主頁面');
+    }
+
+    // 填充大學專頁內容
+    populateUniversityPage(universityName) {
+        console.log('填充大學專頁:', universityName);
+        
+        // 收集該大學的相關事件
+        const universityEvents = this.timelineData.timeline.filter(item => 
+            item.schools && item.schools.includes(universityName)
+        );
+        
+        console.log('找到相關事件:', universityEvents.length, '個');
+        console.log('相關事件:', universityEvents);
+
+        // 填充簡章資訊
+        this.populateUniversityInfo(universityName);
+
+        // 填充相關事件
+        this.populateUniversityEvents(universityEvents);
+
+        // 填充準備資料
+        this.populateUniversityPreparation(universityEvents);
+
+        // 填充報名資訊
+        this.populateUniversityRegistration(universityEvents);
+
+        // 填充考試日期
+        this.populateUniversityExamDates(universityEvents);
+    }
+
+    // 填充大學資訊
+    populateUniversityInfo(universityName) {
+        const infoSection = document.getElementById('universityInfo');
+        if (!infoSection) return;
+
+        infoSection.innerHTML = `
+            <div class="info-item">
+                <h4>${universityName}</h4>
+                <p>相關升學管道：${this.getUniversityPathways(universityName).join('、')}</p>
+                <p>相關事件數量：${this.getUniversityEventsCount(universityName)} 個</p>
+            </div>
+        `;
+    }
+
+    // 填充大學事件
+    populateUniversityEvents(events) {
+        console.log('填充大學事件:', events);
+        const eventsSection = document.getElementById('universityEvents');
+        if (!eventsSection) {
+            console.error('找不到 universityEvents 元素');
+            return;
+        }
+
+        if (events.length === 0) {
+            console.log('沒有相關事件，顯示暫無相關事件');
+            eventsSection.innerHTML = '<p>暫無相關事件</p>';
+            return;
+        }
+
+        console.log('渲染', events.length, '個事件');
+        const htmlContent = events.map(event => `
+            <div class="event-item">
+                <h4>${event.item}</h4>
+                <p><strong>升學管道：</strong>${event.pathway}</p>
+                <p><strong>日期：</strong>${this.formatTime(new Date(event.date))}</p>
+                <p><strong>狀態：</strong>${this.getStatusText(this.calculateDaysUntil(event.date))}</p>
+            </div>
+        `).join('');
+        
+        console.log('HTML 內容:', htmlContent);
+        eventsSection.innerHTML = htmlContent;
+        console.log('DOM 元素更新後:', eventsSection.innerHTML);
+    }
+
+    // 填充準備資料
+    populateUniversityPreparation(events) {
+        const preparationSection = document.getElementById('universityPreparation');
+        if (!preparationSection) return;
+
+        const allPreparation = new Set();
+        events.forEach(event => {
+            if (event.preparation && Array.isArray(event.preparation)) {
+                event.preparation.forEach(item => {
+                    if (item.trim()) {
+                        allPreparation.add(item.trim());
+                    }
+                });
+            }
+        });
+
+        if (allPreparation.size === 0) {
+            preparationSection.innerHTML = '<p>暫無準備資料</p>';
+            return;
+        }
+
+        preparationSection.innerHTML = Array.from(allPreparation).map(item => `
+            <div class="preparation-item">
+                <p>${item}</p>
+            </div>
+        `).join('');
+    }
+
+    // 填充報名資訊
+    populateUniversityRegistration(events) {
+        const registrationSection = document.getElementById('universityRegistration');
+        if (!registrationSection) return;
+
+        const registrationEvents = events.filter(event => 
+            event.item.includes('報名') || event.item.includes('申請')
+        );
+
+        if (registrationEvents.length === 0) {
+            registrationSection.innerHTML = '<p>暫無報名資訊</p>';
+            return;
+        }
+
+        registrationSection.innerHTML = registrationEvents.map(event => `
+            <div class="registration-item">
+                <h4>${event.item}</h4>
+                <p><strong>日期：</strong>${this.formatTime(new Date(event.date))}</p>
+                <p><strong>升學管道：</strong>${event.pathway}</p>
+            </div>
+        `).join('');
+    }
+
+    // 填充考試日期
+    populateUniversityExamDates(events) {
+        const examDatesSection = document.getElementById('universityExamDates');
+        if (!examDatesSection) return;
+
+        const examEvents = events.filter(event => 
+            event.item.includes('考試') || event.item.includes('測驗') || event.item.includes('面試')
+        );
+
+        if (examEvents.length === 0) {
+            examDatesSection.innerHTML = '<p>暫無考試日期</p>';
+            return;
+        }
+
+        examDatesSection.innerHTML = examEvents.map(event => `
+            <div class="exam-date-item">
+                <h4>${event.item}</h4>
+                <p><strong>日期：</strong>${this.formatTime(new Date(event.date))}</p>
+                <p><strong>升學管道：</strong>${event.pathway}</p>
+                <p><strong>狀態：</strong>${this.getStatusText(this.calculateDaysUntil(event.date))}</p>
+            </div>
+        `).join('');
+    }
+
+    // 獲取大學的升學管道
+    getUniversityPathways(universityName) {
+        const pathways = new Set();
+        this.timelineData.timeline.forEach(item => {
+            if (item.schools && item.schools.includes(universityName)) {
+                pathways.add(item.pathway);
+            }
+        });
+        return Array.from(pathways);
+    }
+
+    // 獲取大學事件數量
+    getUniversityEventsCount(universityName) {
+        return this.timelineData.timeline.filter(item => 
+            item.schools && item.schools.includes(universityName)
+        ).length;
     }
 }
 

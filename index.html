@@ -4,13 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>高中升大學時程管理</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="styles.css?v=20251021">
 </head>
 <body>
     <div class="container">
         <div class="timeline-header">
             <h1>高中升大學時程管理</h1>
             <p class="subtitle">點擊時間點查看詳細內容</p>
+        </div>
+        
+        <!-- 大學區域 -->
+        <div class="university-section" id="universitySection">
+            <h3>相關大學</h3>
+            <div class="university-list" id="universityList">
+                <!-- 大學列表將由 JavaScript 動態生成 -->
+            </div>
         </div>
         
         <div class="timeline-wrapper">
@@ -32,6 +43,46 @@
             <button id="scrollRight" class="scroll-btn" title="向右滑動">→</button>
         </div>
         
+        <!-- 大學專頁 -->
+        <div class="university-page" id="universityPage" style="display: none;">
+            <div class="university-page-header">
+                <button id="backToHome" class="back-btn">← 返回首頁</button>
+                <h2 id="universityName">大學名稱</h2>
+            </div>
+            <div class="university-content">
+                <div class="university-section-content">
+                    <h3>簡章資訊</h3>
+                    <div id="universityInfo" class="info-section">
+                        <!-- 大學資訊將由 JavaScript 動態生成 -->
+                    </div>
+                </div>
+                <div class="university-section-content">
+                    <h3>相關事件</h3>
+                    <div id="universityEvents" class="events-section">
+                        <!-- 大學相關事件將由 JavaScript 動態生成 -->
+                    </div>
+                </div>
+                <div class="university-section-content">
+                    <h3>準備資料</h3>
+                    <div id="universityPreparation" class="preparation-section">
+                        <!-- 準備資料將由 JavaScript 動態生成 -->
+                    </div>
+                </div>
+                <div class="university-section-content">
+                    <h3>報名資訊</h3>
+                    <div id="universityRegistration" class="registration-section">
+                        <!-- 報名資訊將由 JavaScript 動態生成 -->
+                    </div>
+                </div>
+                <div class="university-section-content">
+                    <h3>考試日期</h3>
+                    <div id="universityExamDates" class="exam-dates-section">
+                        <!-- 考試日期將由 JavaScript 動態生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- 詳細內容彈出視窗 -->
         <div class="modal" id="modal">
             <div class="modal-content">
@@ -48,11 +99,9 @@
                 <span class="close">&times;</span>
                 <div class="modal-body">
                     <h2 id="editModalTitle">新增事件</h2>
-                    <form id="eventForm">
-                        <div class="form-group">
-                            <label for="eventId">事件ID：</label>
-                            <input type="text" id="eventId" name="id" required>
-                        </div>
+                <form id="eventForm">
+                    <!-- 事件ID自動產生，隱藏欄位 -->
+                    <input type="hidden" id="eventId" name="id">
                         <div class="form-group">
                             <label for="eventPathway">升學管道：</label>
                             <select id="eventPathway" name="pathway" required>
@@ -116,6 +165,6 @@
         </footer>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=20251021"></script>
 </body>
 </html>
