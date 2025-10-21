@@ -143,6 +143,9 @@ class TimelineManager {
         // 清空容器
         this.timelineContainer.innerHTML = '';
 
+        // 添加現在時間指示器
+        this.addNowIndicator(sortedTimeline);
+
         // 渲染每個時間點
         sortedTimeline.forEach((item, index) => {
             const timelineItem = this.createTimelineItem(item, index);
@@ -150,14 +153,79 @@ class TimelineManager {
         });
     }
 
+    // 添加現在時間指示器
+    addNowIndicator(sortedTimeline) {
+        const now = new Date();
+        const nowIndicator = document.createElement('div');
+        nowIndicator.className = 'timeline-now';
+        
+        // 計算現在時間在時間軸上的位置
+        const firstDate = new Date(sortedTimeline[0].date);
+        const lastDate = new Date(sortedTimeline[sortedTimeline.length - 1].date);
+        const totalDays = (lastDate - firstDate) / (1000 * 60 * 60 * 24);
+        const daysFromStart = (now - firstDate) / (1000 * 60 * 60 * 24);
+        
+        let position = 0;
+        if (daysFromStart >= 0 && daysFromStart <= totalDays) {
+            position = (daysFromStart / totalDays) * 100;
+        } else if (daysFromStart < 0) {
+            position = 0; // 現在時間在時間軸之前
+        } else {
+            position = 100; // 現在時間在時間軸之後
+        }
+        
+        nowIndicator.style.left = `${position}%`;
+        
+        const nowLabel = document.createElement('div');
+        nowLabel.className = 'timeline-now-label';
+        nowLabel.textContent = `現在 ${this.formatTime(now)}`;
+        
+        const nowLine = document.createElement('div');
+        nowLine.className = 'timeline-now-line';
+        
+        nowIndicator.appendChild(nowLabel);
+        nowIndicator.appendChild(nowLine);
+        
+        this.timelineContainer.appendChild(nowIndicator);
+    }
+
+    // 格式化時間
+    formatTime(date) {
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${year}/${month}/${day}`;
+    }
+
+    // 取得狀態文字
+    getStatusText(days) {
+        if (days < 0) {
+            return '已過期';
+        } else if (days === 0) {
+            return '今天';
+        } else if (days === 1) {
+            return '明天';
+        } else if (days <= 7) {
+            return `${days}天後`;
+        } else if (days <= 30) {
+            return `${days}天後`;
+        } else {
+            return `${days}天後`;
+        }
+    }
+
     // 創建時間軸項目
     createTimelineItem(item, index) {
         const timelineItem = document.createElement('div');
         timelineItem.className = `timeline-item ${this.getPathwayClass(item.pathway)}`;
         
-        // 檢查是否為緊急項目（7天內）
+        // 計算剩餘天數
         const daysUntil = this.calculateDaysUntil(item.date);
-        if (daysUntil <= 7 && daysUntil >= 0) {
+        const isPast = daysUntil < 0;
+        const isUrgent = daysUntil <= 7 && daysUntil >= 0;
+        
+        // 檢查是否為緊急項目（7天內）
+        if (isUrgent) {
             timelineItem.classList.add('urgent');
         }
 
@@ -172,10 +240,17 @@ class TimelineManager {
         
         timelineItem.innerHTML = `
             <div class="timeline-dot"></div>
-            <div class="timeline-label ${labelPosition}">
-                <div class="timeline-date">${this.formatDateShort(item.date)}</div>
+            <!-- 簡化標籤（預設顯示） -->
+            <div class="timeline-label simple ${labelPosition}">
+                <div class="timeline-date ${isPast ? 'past' : isUrgent ? 'urgent' : ''}">${this.formatDateShort(item.date)}</div>
+                <div class="timeline-event">${item.item}</div>
+            </div>
+            <!-- 詳細標籤（懸停時顯示） -->
+            <div class="timeline-label detailed ${labelPosition}">
+                <div class="timeline-date ${isPast ? 'past' : isUrgent ? 'urgent' : ''}">${this.formatDateShort(item.date)}</div>
                 <div class="timeline-event">${item.item}</div>
                 <div class="timeline-pathway">${item.pathway}</div>
+                <div class="timeline-status ${isPast ? 'past' : isUrgent ? 'urgent' : ''}">${this.getStatusText(daysUntil)}</div>
             </div>
         `;
         
@@ -358,6 +433,11 @@ class TimelineManager {
         this.isEditMode = false;
         this.currentEditingItem = null;
         
+        // 每分鐘更新現在時間指示器
+        setInterval(() => {
+            this.updateNowIndicator();
+        }, 60000); // 每分鐘更新一次
+        
         // 綁定管理按鈕事件
         document.getElementById('addEventBtn').addEventListener('click', () => {
             this.openEditModal();
@@ -524,6 +604,18 @@ class TimelineManager {
         link.download = 'timeline-data.json';
         link.click();
         URL.revokeObjectURL(url);
+    }
+
+    // 更新現在時間指示器
+    updateNowIndicator() {
+        const nowIndicator = document.querySelector('.timeline-now');
+        if (nowIndicator) {
+            const nowLabel = nowIndicator.querySelector('.timeline-now-label');
+            if (nowLabel) {
+                const now = new Date();
+                nowLabel.textContent = `現在 ${this.formatTime(now)}`;
+            }
+        }
     }
 }
 
