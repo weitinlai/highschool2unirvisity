@@ -1,3 +1,5 @@
+import { db, doc, getDoc, setDoc } from './firebase-config.js';
+
 // 時間軸管理類
 class TimelineManager {
     constructor() {
@@ -23,17 +25,51 @@ class TimelineManager {
         }
     }
 
+    // 從 Firestore 載入資料
+    async loadFromFirestore() {
+        try {
+            const docRef = doc(db, 'timeline', 'data');
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                this.timelineData = docSnap.data();
+                console.log('從 Firestore 載入資料成功');
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Firestore 載入失敗:', error);
+            return false;
+        }
+    }
+
+    // 儲存到 Firestore
+    async saveToFirestore() {
+        try {
+            const docRef = doc(db, 'timeline', 'data');
+            await setDoc(docRef, this.timelineData);
+            console.log('資料已同步至 Firestore');
+        } catch (error) {
+            console.error('Firestore 儲存失敗:', error);
+            this.showSuccessMessage('⚠️ 資料同步失敗，請檢查網路');
+        }
+    }
+
     // 載入時程資料
     async loadTimelineData() {
         try {
+            // 優先從 Firestore 載入
+            const loaded = await this.loadFromFirestore();
+            if (loaded) return;
+            
+            // Firestore 無資料，從 JSON 初始化
             const response = await fetch(`timeline-data.json?ts=${Date.now()}`, { cache: 'no-store' });
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             this.timelineData = await response.json();
+            
+            // 上傳初始資料至 Firestore
+            await this.saveToFirestore();
         } catch (error) {
             console.error('載入資料失敗:', error);
-            // 如果無法載入 JSON 檔案，使用內建的範例資料
             this.timelineData = this.getDefaultData();
             console.log('使用預設資料');
         }
@@ -601,7 +637,7 @@ class TimelineManager {
     }
 
     // 儲存事件
-    saveEvent() {
+    async saveEvent() {
         const formData = new FormData(document.getElementById('eventForm'));
         
         // 如果是新增事件且ID為空，自動產生ID
@@ -633,6 +669,9 @@ class TimelineManager {
         // 更新最後修改時間
         this.timelineData.lastUpdate = new Date().toISOString().split('T')[0];
         
+        // 同步到 Firestore
+        await this.saveToFirestore();
+        
         // 重新渲染時間軸
         this.renderTimeline();
         this.updateLastUpdateTime();
@@ -642,11 +681,11 @@ class TimelineManager {
         
         // 顯示成功訊息
         const action = this.currentEditingItem ? '更新' : '新增';
-        this.showSuccessMessage(`事件已${action}成功！`);
+        this.showSuccessMessage(`✅ 事件已${action}並同步至雲端！`);
     }
 
     // 刪除事件
-    deleteEvent() {
+    async deleteEvent() {
         if (this.currentEditingItem) {
             const eventName = this.currentEditingItem.item;
             const eventDate = this.formatDateShort(this.currentEditingItem.date);
@@ -655,12 +694,16 @@ class TimelineManager {
                 const index = this.timelineData.timeline.findIndex(item => item.id === this.currentEditingItem.id);
                 if (index !== -1) {
                     this.timelineData.timeline.splice(index, 1);
+                    
+                    // 同步到 Firestore
+                    await this.saveToFirestore();
+                    
                     this.renderTimeline();
                     this.updateLastUpdateTime();
                     this.closeEditModal();
                     
                     // 顯示刪除成功提示
-                    this.showSuccessMessage(`事件「${eventName}」已刪除！`);
+                    this.showSuccessMessage(`✅ 事件「${eventName}」已刪除並同步！`);
                 }
             }
         }
