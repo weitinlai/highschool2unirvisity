@@ -6,6 +6,8 @@ class TimelineManager {
         this.timelineData = null;
         this.timelineContainer = document.getElementById('timeline');
         this.lastUpdateElement = document.getElementById('lastUpdate');
+        // 導航焦點日期：左右箭頭以此為基準尋找上一/下一事件
+        this.navigationFocusDate = null;
         this.init();
     }
 
@@ -776,6 +778,8 @@ class TimelineManager {
         this.currentEndDate = new Date(this.currentStartDate);
         this.currentEndDate.setMonth(this.currentStartDate.getMonth() + 1);
         this.currentEndDate.setDate(0); // 設為上個月的最後一天
+        // 初始化導航焦點為今天（不含時間）
+        this.navigationFocusDate = this.getDateOnly(new Date());
         
         this.isDragging = false;
         this.dragStartX = 0;
@@ -796,13 +800,13 @@ class TimelineManager {
         // 滑動控制按鈕
         if (scrollLeftBtn) {
             scrollLeftBtn.addEventListener('click', () => {
-                this.moveTimeRange(-7); // 向左移動7天
+                this.scrollToPreviousEvent(); // 跳转到最近的上一个事件
             });
         }
         
         if (scrollRightBtn) {
             scrollRightBtn.addEventListener('click', () => {
-                this.moveTimeRange(7); // 向右移動7天
+                this.scrollToNextEvent(); // 跳转到最近的下一个事件
             });
         }
         
@@ -814,6 +818,28 @@ class TimelineManager {
         
         // 更新時間標籤
         this.updateTimeLabels();
+    }
+
+    // 解析日期（支援 YYYY-MM-DD 與 YYYY/MM/DD）
+    parseDate(dateLike) {
+        if (dateLike instanceof Date) return dateLike;
+        if (typeof dateLike === 'string') {
+            const m = dateLike.match(/^(\d{4})[-\/]?(\d{2}|\d{1})[-\/]?(\d{2}|\d{1})$/);
+            if (m) {
+                const year = parseInt(m[1], 10);
+                const month = parseInt(m[2], 10) - 1;
+                const day = parseInt(m[3], 10);
+                return new Date(year, month, day);
+            }
+            return new Date(dateLike);
+        }
+        return new Date(dateLike);
+    }
+
+    // 取得只含日期（00:00:00）的 Date
+    getDateOnly(dateLike) {
+        const d = this.parseDate(dateLike);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
     }
 
     // 綁定拖拽事件
@@ -935,6 +961,8 @@ class TimelineManager {
         // 設置當前時間範圍為現在時間所在的月份
         this.currentStartDate = new Date(nowYear, nowMonth, 1);
         this.currentEndDate = new Date(nowYear, nowMonth + 1, 0);
+        // 將導航焦點重設為今天
+        this.navigationFocusDate = this.getDateOnly(now);
         
         // 更新時間標籤和重新渲染
         this.updateTimeLabels();
@@ -1235,6 +1263,124 @@ class TimelineManager {
         return this.timelineData.timeline.filter(item => 
             item.schools && item.schools.includes(universityName)
         ).length;
+    }
+
+    // 跳转到最近的上一个事件（以導航焦點為基準）
+    scrollToPreviousEvent() {
+        console.log('scrollToPreviousEvent 被调用');
+        
+        if (!this.timelineData || !this.timelineData.timeline) {
+            console.log('没有时间轴数据');
+            return;
+        }
+
+        console.log('时间轴数据:', this.timelineData.timeline);
+
+        // 按日期排序事件
+        const sortedEvents = [...this.timelineData.timeline].sort((a, b) => {
+            return new Date(a.date) - new Date(b.date);
+        });
+
+        console.log('排序后的事件:', sortedEvents);
+
+        const focus = this.navigationFocusDate ? this.getDateOnly(this.navigationFocusDate) : this.getDateOnly(new Date());
+        console.log('導航焦點日期:', focus);
+        
+        let previousEvent = null;
+
+        // 找到最近的上一个事件（日期小於導航焦點）
+        for (let i = sortedEvents.length - 1; i >= 0; i--) {
+            const eventDate = this.getDateOnly(sortedEvents[i].date);
+            console.log(`检查事件 ${i}: ${sortedEvents[i].item}, 日期: ${eventDate}, 比较: ${eventDate < focus}`);
+            
+            if (eventDate < focus) {
+                previousEvent = sortedEvents[i];
+                console.log('找到上一个事件:', previousEvent);
+                break;
+            }
+        }
+
+        if (previousEvent) {
+            console.log('跳转到事件:', previousEvent);
+            // 设置时间范围，让事件在时间轴中央显示
+            const eventDate = this.getDateOnly(previousEvent.date);
+            const startDate = new Date(eventDate);
+            startDate.setDate(startDate.getDate() - 15); // 事件前15天
+            const endDate = new Date(eventDate);
+            endDate.setDate(endDate.getDate() + 15); // 事件后15天
+
+            this.currentStartDate = startDate;
+            this.currentEndDate = endDate;
+            // 更新導航焦點
+            this.navigationFocusDate = eventDate;
+
+            // 更新时间标签和重新渲染
+            this.updateTimeLabels();
+            this.renderTimeline();
+        } else {
+            console.log('没有找到上一个事件');
+            this.showSuccessMessage('⚠️ 已經是最早的事件');
+        }
+    }
+
+    // 跳转到最近的下一个事件（以導航焦點為基準）
+    scrollToNextEvent() {
+        console.log('scrollToNextEvent 被调用');
+        
+        if (!this.timelineData || !this.timelineData.timeline) {
+            console.log('没有时间轴数据');
+            return;
+        }
+
+        console.log('时间轴数据:', this.timelineData.timeline);
+
+        // 按日期排序事件
+        const sortedEvents = [...this.timelineData.timeline].sort((a, b) => {
+            return new Date(a.date) - new Date(b.date);
+        });
+
+        console.log('排序后的事件:', sortedEvents);
+
+        // 以導航焦點作為基準（不含時間）
+        const focus = this.navigationFocusDate ? this.getDateOnly(this.navigationFocusDate) : this.getDateOnly(new Date());
+        
+        console.log('導航焦點日期:', focus);
+        
+        let nextEvent = null;
+
+        // 找到最近的下一个事件（日期大於導航焦點）
+        for (let i = 0; i < sortedEvents.length; i++) {
+            const eventDate = this.getDateOnly(sortedEvents[i].date);
+            console.log(`检查事件 ${i}: ${sortedEvents[i].item}, 日期: ${eventDate}, 比较: ${eventDate > focus}`);
+            
+            if (eventDate > focus) {
+                nextEvent = sortedEvents[i];
+                console.log('找到下一个事件:', nextEvent);
+                break;
+            }
+        }
+
+        if (nextEvent) {
+            console.log('跳转到事件:', nextEvent);
+            // 设置时间范围，让事件在时间轴中央显示
+            const eventDate = this.getDateOnly(nextEvent.date);
+            const startDate = new Date(eventDate);
+            startDate.setDate(startDate.getDate() - 15); // 事件前15天
+            const endDate = new Date(eventDate);
+            endDate.setDate(endDate.getDate() + 15); // 事件后15天
+
+            this.currentStartDate = startDate;
+            this.currentEndDate = endDate;
+            // 更新導航焦點
+            this.navigationFocusDate = eventDate;
+
+            // 更新时间标签和重新渲染
+            this.updateTimeLabels();
+            this.renderTimeline();
+        } else {
+            console.log('没有找到下一个事件');
+            this.showSuccessMessage('⚠️ 已經是最後一個事件');
+        }
     }
 }
 
