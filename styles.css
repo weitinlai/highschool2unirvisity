@@ -1197,6 +1197,59 @@ body {
     transform: translateX(5px);
 }
 
+/* 新的可勾選準備清單樣式 */
+.prep-progress {
+    display: inline-block;
+    margin: 6px 0 10px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #ecf5ff;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: 1px solid #d6ebff;
+}
+
+.prep-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+}
+
+.prep-item {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 8px 10px;
+    border: 1px solid #ecf0f1;
+    display: flex;
+    align-items: center;
+}
+
+.prep-item.readonly {
+    opacity: 0.85;
+}
+
+.prep-item label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.prep-checkbox {
+    width: 16px;
+    height: 16px;
+}
+
+.prep-text {
+    color: #2c3e50;
+    font-size: 0.95rem;
+}
+
 /* 申請學校 */
 .timeline-schools {
     margin-top: 20px;

@@ -341,15 +341,60 @@ class TimelineManager {
         return timelineItem;
     }
 
-    // 創建準備項目區塊
-    createPreparationSection(preparation) {
-        if (!preparation || preparation.length === 0) return '';
-        
+    // 解析準備項目：支援 [ ] / [x] 前綴以啟用勾選
+    parsePrepItem(str) {
+        const s = (str || '').trim();
+        const m = s.match(/^\[( |x|X)\]\s*(.*)$/);
+        if (m) {
+            return { text: m[2], checkable: true, done: m[1].toLowerCase() === 'x' };
+        }
+        return { text: s, checkable: false, done: false };
+    }
+
+    // 格式化準備項目回存為字串
+    formatPrepItem(item) {
+        if (item.checkable) {
+            return `[${item.done ? 'x' : ' '}] ${item.text}`;
+        }
+        return item.text;
+    }
+
+    // 創建準備項目區塊（含勾選與完成度）
+    createPreparationSection(item) {
+        const preparation = item && Array.isArray(item.preparation) ? item.preparation : [];
+        if (preparation.length === 0) return '';
+
+        const parsed = preparation.map(p => this.parsePrepItem(p));
+        const checkable = parsed.filter(p => p.checkable);
+        const doneCount = checkable.filter(p => p.done).length;
+        const totalCheckable = checkable.length;
+        const percent = totalCheckable > 0 ? Math.round((doneCount / totalCheckable) * 100) : 0;
+
+        const listHtml = parsed.map((p, idx) => {
+            if (p.checkable) {
+                const checkedAttr = p.done ? 'checked' : '';
+                return `
+                    <li class="prep-item" data-idx="${idx}">
+                        <label>
+                            <input type="checkbox" class="prep-checkbox" data-idx="${idx}" ${checkedAttr} />
+                            <span class="prep-text">${p.text}</span>
+                        </label>
+                    </li>
+                `;
+            }
+            return `<li class="prep-item readonly"><span class="prep-text">${p.text}</span></li>`;
+        }).join('');
+
+        const progressHtml = totalCheckable > 0
+            ? `<div class="prep-progress">完成 ${doneCount}/${totalCheckable}（${percent}%）</div>`
+            : '';
+
         return `
             <div class="timeline-preparation">
                 <h4>準備項目</h4>
-                <ul class="preparation-list">
-                    ${preparation.map(item => `<li>${item}</li>`).join('')}
+                ${progressHtml}
+                <ul class="prep-list" data-event-id="${item.id}">
+                    ${listHtml}
                 </ul>
             </div>
         `;
@@ -456,11 +501,28 @@ class TimelineManager {
                 <div class="modal-countdown ${pathwayClass} ${isUrgent ? 'urgent' : ''}">${countdownText}</div>
             </div>
             
-            ${this.createPreparationSection(item.preparation)}
+            ${this.createPreparationSection(item)}
             ${this.createSchoolsSection(item.schools)}
         `;
         
         modal.style.display = 'block';
+        // 綁定準備項目勾選事件
+        const prepList = modalBody.querySelector('.prep-list');
+        if (prepList) {
+            const eventId = item.id;
+            prepList.querySelectorAll('.prep-checkbox').forEach(cb => {
+                cb.addEventListener('change', async (e) => {
+                    const idx = parseInt(cb.getAttribute('data-idx'), 10);
+                    const done = cb.checked;
+                    await this.handlePrepToggle(eventId, idx, done);
+                    // 重新顯示以更新進度與狀態
+                    const updated = this.timelineData.timeline.find(i => i.id === eventId);
+                    if (updated) {
+                        this.showModal(updated);
+                    }
+                });
+            });
+        }
         
         // 添加關閉事件
         const closeBtn = document.querySelector('.close');
@@ -474,6 +536,22 @@ class TimelineManager {
                 modal.style.display = 'none';
             }
         };
+    }
+
+    // 切換準備項目完成狀態並持久化
+    async handlePrepToggle(eventId, idx, done) {
+        const it = this.timelineData.timeline.find(i => i.id === eventId);
+        if (!it || !Array.isArray(it.preparation)) return;
+        const parsed = it.preparation.map(p => this.parsePrepItem(p));
+        if (idx >= 0 && idx < parsed.length && parsed[idx].checkable) {
+            parsed[idx].done = !!done;
+            it.preparation = parsed.map(p => this.formatPrepItem(p));
+            this.timelineData.lastUpdate = new Date().toISOString().split('T')[0];
+            await this.saveToFirestore();
+            // 時間軸重新渲染以反映其他區塊可能的變化
+            this.renderTimeline();
+            this.updateLastUpdateTime();
+        }
     }
 
     // 顯示錯誤訊息
@@ -645,6 +723,16 @@ class TimelineManager {
         }
         
         modal.style.display = 'block';
+
+        // 在準備項目下方加上教學提示（僅加一次）
+        const prepTextarea = document.getElementById('eventPreparation');
+        if (prepTextarea && !document.getElementById('prepHint')) {
+            const hint = document.createElement('div');
+            hint.id = 'prepHint';
+            hint.style.cssText = 'margin-top:6px;color:#7f8c8d;font-size:0.85rem;';
+            hint.textContent = '可在行首加 [ ] 或 [x] 來啟用勾選與預設完成狀態';
+            prepTextarea.parentElement.appendChild(hint);
+        }
     }
 
     // 關閉編輯視窗
@@ -1228,6 +1316,8 @@ class TimelineManager {
 
         // 設置大學名稱
         universityNameElement.textContent = universityName;
+        // 記錄目前顯示的大學，供勾選後重繪
+        this.currentUniversityPageName = universityName;
 
         // 填充大學專頁內容
         this.populateUniversityPage(universityName);
@@ -1329,27 +1419,66 @@ class TimelineManager {
         const preparationSection = document.getElementById('universityPreparation');
         if (!preparationSection) return;
 
-        const allPreparation = new Set();
-        events.forEach(event => {
-            if (event.preparation && Array.isArray(event.preparation)) {
-                event.preparation.forEach(item => {
-                    if (item.trim()) {
-                        allPreparation.add(item.trim());
-                    }
-                });
-            }
-        });
+        // 依事件分組顯示，支援可勾選項目
+        const groupsHtml = events.map(ev => {
+            const prep = Array.isArray(ev.preparation) ? ev.preparation : [];
+            if (prep.length === 0) return '';
+            const parsed = prep.map(p => this.parsePrepItem(p));
+            const checkable = parsed.filter(p => p.checkable);
+            const doneCount = checkable.filter(p => p.done).length;
+            const total = checkable.length;
+            const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
-        if (allPreparation.size === 0) {
+            const list = parsed.map((p, idx) => {
+                if (p.checkable) {
+                    const checkedAttr = p.done ? 'checked' : '';
+                    return `
+                        <li class="prep-item" data-idx="${idx}">
+                            <label>
+                                <input type="checkbox" class="prep-checkbox" data-idx="${idx}" data-event-id="${ev.id}" ${checkedAttr} />
+                                <span class="prep-text">${p.text}</span>
+                            </label>
+                        </li>
+                    `;
+                }
+                return `<li class="prep-item readonly"><span class="prep-text">${p.text}</span></li>`;
+            }).join('');
+
+            const progress = total > 0 ? `<div class="prep-progress">完成 ${doneCount}/${total}（${percent}%）</div>` : '';
+
+            return `
+                <div class="preparation-group">
+                    <div class="prep-group-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                        <h4 style="margin:0;font-size:1rem;color:#2c3e50;">${ev.item}（${this.formatTime(new Date(ev.date))}）</h4>
+                        ${progress}
+                    </div>
+                    <ul class="prep-list" data-event-id="${ev.id}">
+                        ${list}
+                    </ul>
+                </div>
+            `;
+        }).join('');
+
+        if (!groupsHtml || groupsHtml.trim() === '') {
             preparationSection.innerHTML = '<p>暫無準備資料</p>';
             return;
         }
 
-        preparationSection.innerHTML = Array.from(allPreparation).map(item => `
-            <div class="preparation-item">
-                <p>${item}</p>
-            </div>
-        `).join('');
+        preparationSection.innerHTML = groupsHtml;
+
+        // 綁定勾選事件（大學專頁）
+        preparationSection.querySelectorAll('.prep-checkbox').forEach(cb => {
+            cb.addEventListener('change', async () => {
+                const idx = parseInt(cb.getAttribute('data-idx'), 10);
+                const eventId = cb.getAttribute('data-event-id');
+                const done = cb.checked;
+                await this.handlePrepToggle(eventId, idx, done);
+                // 重繪大學專頁以更新進度
+                if (this.currentUniversityPageName) {
+                    this.populateUniversityPage(this.currentUniversityPageName);
+                }
+            });
+        });
     }
 
     // 填充報名資訊
