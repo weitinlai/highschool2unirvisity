@@ -19,8 +19,30 @@
         <!-- 大學區域 -->
         <div class="university-section" id="universitySection">
             <h3>相關大學</h3>
-            <div class="university-list" id="universityList">
-                <!-- 大學列表將由 JavaScript 動態生成 -->
+            <div class="university-carousel" id="universityCarousel">
+                <div class="carousel-track">
+                    <section class="category-circle" data-category="特殊選才">
+                        <div class="circle-content">
+                            <h4>特殊選才</h4>
+                            <div class="circle-count" id="countSpecial">0</div>
+                            <div class="circle-preview" id="previewSpecial"></div>
+                        </div>
+                    </section>
+                    <section class="category-circle" data-category="申請入學">
+                        <div class="circle-content">
+                            <h4>申請入學</h4>
+                            <div class="circle-count" id="countApplication">0</div>
+                            <div class="circle-preview" id="previewApplication"></div>
+                        </div>
+                    </section>
+                    <section class="category-circle" data-category="分發入學">
+                        <div class="circle-content">
+                            <h4>分發入學</h4>
+                            <div class="circle-count" id="countDistribution">0</div>
+                            <div class="circle-preview" id="previewDistribution"></div>
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
         

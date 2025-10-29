@@ -190,8 +190,8 @@ class TimelineManager {
             this.timelineContainer.appendChild(timelineItem);
         });
 
-        // 更新大學列表
-        this.renderUniversityList();
+        // 更新大學分類：圓形輪播（直接點圈內學校）
+        this.renderUniversityCircles();
     }
 
     // 添加現在時間指示器
@@ -291,6 +291,51 @@ class TimelineManager {
                 // 一般模式下顯示詳情
                 this.showModal(item);
             }
+        });
+
+        // 讓標籤本身點擊也觸發相同行為（與點圓點一致）
+        const labels = timelineItem.querySelectorAll('.timeline-label');
+        labels.forEach(label => {
+            // 提升在 iOS Safari 上的可點擊性
+            label.style.cursor = 'pointer';
+            label.setAttribute('role', 'button');
+            label.setAttribute('tabindex', '0');
+
+            label.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.isEditMode) {
+                    this.openEditModal(item);
+                } else {
+                    this.showModal(item);
+                }
+            });
+
+            // iOS 有時不觸發 click，補上 touchend
+            label.addEventListener('touchend', (e) => {
+                // 僅在非拖拽時觸發，避免與拖動衝突
+                if (!this.isDragging) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (this.isEditMode) {
+                        this.openEditModal(item);
+                    } else {
+                        this.showModal(item);
+                    }
+                }
+            }, { passive: false });
+
+            // 鍵盤可存取（Enter/Space）
+            label.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (this.isEditMode) {
+                        this.openEditModal(item);
+                    } else {
+                        this.showModal(item);
+                    }
+                }
+            });
         });
 
         return timelineItem;
@@ -862,20 +907,31 @@ class TimelineManager {
         
         // 觸控事件
         wrapper.addEventListener('touchstart', (e) => {
-            this.startDrag(e.touches[0].clientX);
-            e.preventDefault();
-        });
+            // 在觸控開始時先不進入拖拽，避免阻止點擊
+            this.touchStartX = e.touches[0].clientX;
+            this.dragStartX = this.touchStartX;
+            this.isDragging = false; // 先視為點擊，移動達門檻再進入拖拽
+        }, { passive: false });
         
         wrapper.addEventListener('touchmove', (e) => {
-            if (this.isDragging) {
-                this.drag(e.touches[0].clientX);
-                e.preventDefault();
+            const currentX = e.touches[0].clientX;
+            const threshold = 10; // 手指移動超過10px才視為拖拽
+            if (!this.isDragging) {
+                if (Math.abs(currentX - this.touchStartX) > threshold) {
+                    this.isDragging = true;
+                }
             }
-        });
+            if (this.isDragging) {
+                this.drag(currentX);
+                e.preventDefault(); // 進入拖拽後阻止滾動與點擊
+            }
+        }, { passive: false });
         
         wrapper.addEventListener('touchend', () => {
-            this.endDrag();
-        });
+            if (this.isDragging) {
+                this.endDrag();
+            }
+        }, { passive: true });
     }
 
     // 開始拖拽
@@ -982,45 +1038,15 @@ class TimelineManager {
     initUniversitySection() {
         // 確保時間軸資料已載入
         if (this.timelineData && this.timelineData.timeline) {
-            this.renderUniversityList();
+            this.renderUniversityCircles();
         }
         this.bindUniversityEvents();
     }
 
     // 渲染大學列表
     renderUniversityList() {
-        const universityList = document.getElementById('universityList');
-        if (!universityList) return;
-
-        // 檢查時間軸資料是否存在
-        if (!this.timelineData || !this.timelineData.timeline) {
-            console.warn('時間軸資料尚未載入，跳過大學列表渲染');
-            return;
-        }
-
-        // 收集所有出現的大學
-        const universities = new Set();
-        this.timelineData.timeline.forEach(item => {
-            if (item.schools && Array.isArray(item.schools)) {
-                item.schools.forEach(school => {
-                    if (school.trim()) {
-                        universities.add(school.trim());
-                    }
-                });
-            }
-        });
-
-        // 清空現有內容
-        universityList.innerHTML = '';
-
-        // 創建大學項目
-        universities.forEach(university => {
-            const universityItem = document.createElement('div');
-            universityItem.className = 'university-item';
-            universityItem.textContent = university;
-            universityItem.setAttribute('data-university', university);
-            universityList.appendChild(universityItem);
-        });
+        // 已改為圓形輪播渲染
+        this.renderUniversityCircles();
     }
 
     // 綁定大學事件
@@ -1040,6 +1066,132 @@ class TimelineManager {
                 this.hideUniversityPage();
             }
         });
+    }
+
+    // 以圓形輪播呈現大學分類，填入數量與預覽
+    renderUniversityCircles() {
+        if (!this.timelineData || !this.timelineData.timeline) {
+            console.warn('時間軸資料尚未載入，跳過大學圓形渲染');
+            return;
+        }
+
+        const groups = {
+            '特殊選才': new Set(),
+            '申請入學': new Set(),
+            '分發入學': new Set()
+        };
+
+        this.timelineData.timeline.forEach(it => {
+            if (!it || !it.pathway) return;
+            if (Array.isArray(it.schools)) {
+                it.schools.forEach(s => {
+                    const name = (s || '').trim();
+                    if (name && groups[it.pathway]) groups[it.pathway].add(name);
+                });
+            }
+        });
+
+        const fill = (countId, previewId, set) => {
+            const arr = Array.from(set);
+            const countEl = document.getElementById(countId);
+            const prevEl = document.getElementById(previewId);
+            if (countEl) countEl.textContent = arr.length;
+            if (prevEl) prevEl.innerHTML = arr.map(u => `<div class="university-item" data-university="${u}">${u}</div>`).join('');
+        };
+
+        fill('countSpecial', 'previewSpecial', groups['特殊選才']);
+        fill('countApplication', 'previewApplication', groups['申請入學']);
+        fill('countDistribution', 'previewDistribution', groups['分發入學']);
+
+        const sp = document.querySelector('[data-category="特殊選才"]');
+        const ap = document.querySelector('[data-category="申請入學"]');
+        const dp = document.querySelector('[data-category="分發入學"]');
+        if (sp) sp.classList.add('special-selection');
+        if (ap) ap.classList.add('application');
+        if (dp) {
+            dp.classList.add('distribution');
+            // 當分發入學沒有學校時先隱藏，有學校時顯示
+            dp.style.display = groups['分發入學'].size === 0 ? 'none' : '';
+        }
+    }
+
+    // 已移除展開邏輯：直接於圓內點擊學校項目
+
+    // 以升學管道分類渲染大學列表（三個面板）
+    renderUniversityCategories() {
+        if (!this.timelineData || !this.timelineData.timeline) {
+            console.warn('時間軸資料尚未載入，跳過大學分類渲染');
+            return;
+        }
+
+        const groups = {
+            '特殊選才': new Set(),
+            '申請入學': new Set(),
+            '分發入學': new Set()
+        };
+
+        this.timelineData.timeline.forEach(item => {
+            if (!item || !item.pathway) return;
+            if (Array.isArray(item.schools)) {
+                item.schools.forEach(s => {
+                    const name = (s || '').trim();
+                    if (name && groups[item.pathway]) {
+                        groups[item.pathway].add(name);
+                    }
+                });
+            }
+        });
+
+        const fill = (id, set) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.innerHTML = Array.from(set).map(u => `
+                <div class="university-item" data-university="${u}">${u}</div>
+            `).join('');
+        };
+
+        fill('listSpecial', groups['特殊選才']);
+        fill('listApplication', groups['申請入學']);
+        fill('listDistribution', groups['分發入學']);
+    }
+
+    // 初始化大學分頁標籤與滾動同步
+    initUniversityTabs() {
+        const tabs = ['特殊選才', '申請入學', '分發入學'];
+        const tabsEl = document.getElementById('universityTabs');
+        const scroller = document.getElementById('universityCategories');
+
+        if (!tabsEl || !scroller) return;
+
+        tabsEl.innerHTML = tabs.map((t, i) => `
+            <button class="university-tab" data-idx="${i}">${t}</button>
+        `).join('');
+
+        const updateActive = (i) => {
+            const btns = tabsEl.querySelectorAll('.university-tab');
+            btns.forEach((b, bi) => b.classList.toggle('active', bi === i));
+        };
+
+        tabsEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.university-tab');
+            if (!btn) return;
+            const i = Number(btn.dataset.idx) || 0;
+            scroller.scrollTo({ left: i * scroller.clientWidth, behavior: 'smooth' });
+            updateActive(i);
+        });
+
+        let ticking = false;
+        scroller.addEventListener('scroll', () => {
+            if (ticking) return;
+            window.requestAnimationFrame(() => {
+                const i = Math.round(scroller.scrollLeft / scroller.clientWidth);
+                updateActive(i);
+                ticking = false;
+            });
+            ticking = true;
+        });
+
+        updateActive(0);
     }
 
     // 顯示大學專頁

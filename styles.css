@@ -43,7 +43,7 @@ body {
 .university-section {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     padding: 30px 20px;
-    margin: 20px 0;
+    margin: 12px 0; /* 減少上下間距，讓手機更容易同時看到 */
     border-radius: 15px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
@@ -83,6 +83,131 @@ body {
 
 .university-item:active {
     transform: translateY(-1px);
+}
+
+/* 大學分類：圓形輪播與全屏清單 */
+.university-carousel {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 4px;
+}
+
+.carousel-track {
+    display: flex;
+    gap: 14px;
+    padding: 6px 8px;
+}
+
+.category-circle {
+    flex: 0 0 auto;
+    width: min(80vw, 320px);
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    position: relative;
+    scroll-snap-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border: 6px solid transparent;
+    background: radial-gradient(120% 120% at 30% 30%, #ffffff, #f3f6fb);
+}
+
+.category-circle.special-selection { border-color: #3498db; }
+.category-circle.application { border-color: #2ecc71; }
+.category-circle.distribution { border-color: #e67e22; }
+
+.circle-content {
+    text-align: center;
+    padding: 14px;
+    max-width: 80%;
+}
+
+.circle-content h4 {
+    margin-bottom: 6px;
+    font-weight: 800;
+    color: #2c3e50;
+}
+
+.circle-count {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.circle-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    max-height: 55%;
+    overflow: auto;
+}
+
+/* 使圈內學校為可點擊的卡片樣式（僅限圓內） */
+.circle-preview .university-item {
+    display: inline-block;
+    background: #eef2f7;
+    border: 1px solid #dde5ef;
+    color: #2c3e50;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.circle-preview .university-item:hover {
+    background: #3498db;
+    color: #fff;
+    border-color: #3498db;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .category-circle { width: min(84vw, 260px); }
+}
+
+/* 大學分類分頁與橫向滑動 */
+.university-tabs {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.university-tab {
+    padding: 8px 14px;
+    border-radius: 20px;
+    background: #eceff4;
+    cursor: pointer;
+    font-weight: 600;
+    border: none;
+}
+
+.university-tab.active {
+    background: #3498db;
+    color: #fff;
+}
+
+.university-categories {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.category-track {
+    display: flex;
+    width: 300%;
+}
+
+.category-panel {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    padding: 4px 0;
 }
 
 /* 大學專頁 */
@@ -189,7 +314,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 60px 0;
+    padding: 40px 0; /* 稍微縮小與上下元素距離 */
     min-height: 70vh;
     overflow: hidden;
     position: relative;
@@ -232,11 +357,11 @@ body {
 
 /* 滑動控制按鈕 */
 .timeline-controls {
-    position: absolute;
-    top: 20px;
-    right: 20px;
+    position: static; /* 放在時間軸與大學之間 */
     display: flex;
     gap: 10px;
+    justify-content: center;
+    margin: 8px 0 12px; /* 與上下元素留較小間距 */
     z-index: 10;
 }
 
@@ -433,7 +558,7 @@ body {
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
     opacity: 1;
-    pointer-events: none;
+    pointer-events: auto; /* 允許點擊標籤本身 */
     min-width: 180px;
     text-align: center;
     border: 2px solid transparent;
@@ -452,17 +577,19 @@ body {
 .timeline-label.detailed {
     opacity: 0;
     transform: translateX(-50%) translateY(-10px);
-    pointer-events: none;
+    pointer-events: none; /* 預設不可點，顯示時再開 */
 }
 
 .timeline-item:hover .timeline-label.simple {
     opacity: 0;
     transform: translateX(-50%) translateY(-10px);
+    pointer-events: none; /* 隱藏時避免攔截點擊 */
 }
 
 .timeline-item:hover .timeline-label.detailed {
     opacity: 1;
     transform: translateX(-50%) translateY(-5px);
+    pointer-events: auto; /* 顯示的詳細標籤可點擊 */
 }
 
 .timeline-item:hover .timeline-dot {
