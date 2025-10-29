@@ -1,4 +1,4 @@
-import { db, doc, getDoc, setDoc } from './firebase-config.js';
+import { db, doc, getDoc, setDoc, storage, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
 
 // 時間軸管理類
 class TimelineManager {
@@ -414,6 +414,29 @@ class TimelineManager {
         `;
     }
 
+    // 簡章資訊區塊
+    createBrochureSection(item) {
+        const b = item && item.brochure ? item.brochure : null;
+        if (!b || (!b.description && (!b.links || b.links.length === 0) && (!b.files || b.files.length === 0))) return '';
+
+        const esc = (s) => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+        const linksHtml = (b.links || []).map(l => {
+            const title = esc(l.title || l.url);
+            const url = encodeURI(l.url || '');
+            return url ? `<li class="link-item"><a href="${url}" target="_blank" rel="noopener">${title}</a></li>` : '';
+        }).join('');
+        const filesHtml = (b.files || []).map(f => `<li class="file-item"><a href="${f.url}" target="_blank" rel="noopener">${esc(f.name || '附件')}</a></li>`).join('');
+
+        return `
+            <div class="brochure-block">
+                <h4>簡章說明</h4>
+                ${b.description ? `<p class="brochure-desc">${esc(b.description)}</p>` : ''}
+                ${linksHtml ? `<div class="brochure-links-view"><h5>連結</h5><ul>${linksHtml}</ul></div>` : ''}
+                ${filesHtml ? `<div class="brochure-files-view"><h5>附件</h5><ul>${filesHtml}</ul></div>` : ''}
+            </div>
+        `;
+    }
+
     // 計算剩餘天數
     calculateDaysUntil(dateString) {
         const targetDate = new Date(dateString);
@@ -501,6 +524,7 @@ class TimelineManager {
                 <div class="modal-countdown ${pathwayClass} ${isUrgent ? 'urgent' : ''}">${countdownText}</div>
             </div>
             
+            ${this.createBrochureSection(item)}
             ${this.createPreparationSection(item)}
             ${this.createSchoolsSection(item.schools)}
         `;
@@ -749,6 +773,39 @@ class TimelineManager {
         document.getElementById('eventDate').value = item.date;
         document.getElementById('eventPreparation').value = item.preparation.join('\n');
         document.getElementById('eventSchools').value = item.schools.join('\n');
+
+        // 簡章：描述、連結、附件
+        const brochure = item.brochure || { description: '', links: [], files: [] };
+        const descEl = document.getElementById('brochureDescription');
+        if (descEl) descEl.value = brochure.description || '';
+
+        const linksWrap = document.getElementById('brochureLinks');
+        if (linksWrap) {
+            linksWrap.innerHTML = '';
+            (brochure.links || []).forEach(l => {
+                linksWrap.appendChild(this.createLinkRow(l.title || '', l.url || ''));
+            });
+            if ((brochure.links || []).length === 0) {
+                linksWrap.appendChild(this.createLinkRow('', ''));
+            }
+            this.bindAddLinkButton();
+        }
+
+        const filesWrap = document.getElementById('brochureFileList');
+        if (filesWrap) {
+            filesWrap.innerHTML = '';
+            (brochure.files || []).forEach(f => {
+                const row = document.createElement('div');
+                row.className = 'file-item';
+                row.innerHTML = `
+                    <a href="${f.url}" target="_blank" rel="noopener">${f.name}</a>
+                    <label style="margin-left:8px; font-size:0.85rem; color:#555;">
+                        <input type="checkbox" class="file-remove" data-url="${f.url}"> 刪除
+                    </label>
+                `;
+                filesWrap.appendChild(row);
+            });
+        }
     }
 
     // 清空編輯表單
@@ -761,6 +818,46 @@ class TimelineManager {
         document.getElementById('eventDate').value = '';
         document.getElementById('eventPreparation').value = '';
         document.getElementById('eventSchools').value = '';
+        const descEl = document.getElementById('brochureDescription');
+        if (descEl) descEl.value = '';
+        const linksWrap = document.getElementById('brochureLinks');
+        if (linksWrap) {
+            linksWrap.innerHTML = '';
+            linksWrap.appendChild(this.createLinkRow('', ''));
+            this.bindAddLinkButton();
+        }
+        const filesWrap = document.getElementById('brochureFileList');
+        if (filesWrap) filesWrap.innerHTML = '';
+    }
+
+    // 建立一列連結輸入
+    createLinkRow(title = '', url = '') {
+        const row = document.createElement('div');
+        row.className = 'link-row';
+        row.style.display = 'flex';
+        row.style.gap = '6px';
+        row.style.marginTop = '6px';
+        row.innerHTML = `
+            <input type="text" class="link-title" placeholder="連結標題" value="${title}">
+            <input type="url" class="link-url" placeholder="https://example.com" value="${url}">
+            <button type="button" class="btn btn-danger link-remove">刪除</button>
+        `;
+        const removeBtn = row.querySelector('.link-remove');
+        removeBtn.addEventListener('click', () => {
+            row.remove();
+        });
+        return row;
+    }
+
+    bindAddLinkButton() {
+        const addBtn = document.getElementById('addLinkBtn');
+        const linksWrap = document.getElementById('brochureLinks');
+        if (addBtn && linksWrap && !addBtn._bound) {
+            addBtn._bound = true;
+            addBtn.addEventListener('click', () => {
+                linksWrap.appendChild(this.createLinkRow('', ''));
+            });
+        }
     }
 
     // 產生事件ID
@@ -781,13 +878,28 @@ class TimelineManager {
             eventId = this.generateEventId();
         }
         
+        // 蒐集簡章資料（描述、連結）
+        const brochureDescription = document.getElementById('brochureDescription')?.value || '';
+        const linksWrap = document.getElementById('brochureLinks');
+        const linkRows = linksWrap ? Array.from(linksWrap.querySelectorAll('.link-row')) : [];
+        const brochureLinks = linkRows.map(r => {
+            const title = r.querySelector('.link-title')?.value?.trim() || '';
+            const url = r.querySelector('.link-url')?.value?.trim() || '';
+            return url ? { title, url } : null;
+        }).filter(Boolean);
+
         const eventData = {
             id: eventId,
             pathway: formData.get('pathway'),
             item: formData.get('item'),
             date: formData.get('date'),
             preparation: formData.get('preparation').split('\n').filter(item => item.trim()),
-            schools: formData.get('schools').split('\n').filter(item => item.trim())
+            schools: formData.get('schools').split('\n').filter(item => item.trim()),
+            brochure: {
+                description: brochureDescription,
+                links: brochureLinks,
+                files: Array.isArray((this.currentEditingItem && this.currentEditingItem.brochure && this.currentEditingItem.brochure.files)) ? [...this.currentEditingItem.brochure.files] : []
+            }
         };
         
         if (this.currentEditingItem) {
@@ -801,6 +913,32 @@ class TimelineManager {
             this.timelineData.timeline.push(eventData);
         }
         
+        // 先處理附件上傳與刪除
+        const removedExisting = Array.from(document.querySelectorAll('.file-remove:checked')).map(el => el.getAttribute('data-url'));
+        if (removedExisting.length > 0 && eventData.brochure && Array.isArray(eventData.brochure.files)) {
+            // 僅移除中繼資料；實體檔案保留於 Storage（避免權限/URL 解析問題）
+            eventData.brochure.files = eventData.brochure.files.filter(f => !removedExisting.includes(f.url));
+        }
+
+        const newFilesInput = document.getElementById('brochureFiles');
+        if (newFilesInput && newFilesInput.files && newFilesInput.files.length > 0) {
+            const filesArr = Array.from(newFilesInput.files);
+            const uploaded = [];
+            for (const f of filesArr) {
+                try {
+                    const path = `timeline/${eventData.id}/${Date.now()}-${f.name}`;
+                    const storageRef = ref(storage, path);
+                    await uploadBytes(storageRef, f);
+                    const url = await getDownloadURL(storageRef);
+                    uploaded.push({ name: f.name, url, contentType: f.type, size: f.size });
+                } catch (e) {
+                    console.error('附件上傳失敗：', f.name, e);
+                }
+            }
+            if (!eventData.brochure) eventData.brochure = { description: '', links: [], files: [] };
+            eventData.brochure.files = [...(eventData.brochure.files || []), ...uploaded];
+        }
+
         // 更新最後修改時間
         this.timelineData.lastUpdate = new Date().toISOString().split('T')[0];
         
@@ -1354,7 +1492,9 @@ class TimelineManager {
         console.log('找到相關事件:', universityEvents.length, '個');
         console.log('相關事件:', universityEvents);
 
-        // 填充簡章資訊
+        // 學校資訊（統計）
+        this.populateUniversityMeta(universityName);
+        // 簡章資訊（獨立專區）
         this.populateUniversityInfo(universityName);
 
         // 填充相關事件
@@ -1370,16 +1510,41 @@ class TimelineManager {
         this.populateUniversityExamDates(universityEvents);
     }
 
-    // 填充大學資訊
+    // 簡章資訊（獨立專區）
     populateUniversityInfo(universityName) {
         const infoSection = document.getElementById('universityInfo');
         if (!infoSection) return;
 
-        infoSection.innerHTML = `
+        const events = this.timelineData.timeline.filter(item => item.schools && item.schools.includes(universityName));
+        const esc = (s) => (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+        const brochureGroups = events.map(ev => {
+            const b = ev.brochure;
+            if (!b || (!b.description && (!b.links || b.links.length === 0) && (!b.files || b.files.length === 0))) return '';
+            const linksHtml = (b.links || []).map(l => l.url ? `<li class="link-item"><a href="${encodeURI(l.url)}" target="_blank" rel="noopener">${esc(l.title || l.url)}</a></li>` : '').join('');
+            const filesHtml = (b.files || []).map(f => `<li class="file-item"><a href="${f.url}" target="_blank" rel="noopener">${esc(f.name || '附件')}</a></li>`).join('');
+            return `
+                <div class="info-item">
+                    <h4>${esc(ev.item)}（${this.formatTime(new Date(ev.date))}）</h4>
+                    ${b.description ? `<p class="brochure-desc">${esc(b.description)}</p>` : ''}
+                    ${linksHtml ? `<div class="brochure-links-view"><h5>連結</h5><ul>${linksHtml}</ul></div>` : ''}
+                    ${filesHtml ? `<div class="brochure-files-view"><h5>附件</h5><ul>${filesHtml}</ul></div>` : ''}
+                </div>
+            `;
+        }).join('');
+
+        infoSection.innerHTML = brochureGroups || '<p>暫無簡章資訊</p>';
+    }
+
+    // 學校資訊（統計專區）
+    populateUniversityMeta(universityName) {
+        const meta = document.getElementById('universityMeta');
+        if (!meta) return;
+        const pathways = this.getUniversityPathways(universityName).join('、');
+        const eventsCount = this.getUniversityEventsCount(universityName);
+        meta.innerHTML = `
             <div class="info-item">
-                <h4>${universityName}</h4>
-                <p>相關升學管道：${this.getUniversityPathways(universityName).join('、')}</p>
-                <p>相關事件數量：${this.getUniversityEventsCount(universityName)} 個</p>
+                <p>相關升學管道：${pathways || '—'}</p>
+                <p>相關事件數量：${eventsCount} 個</p>
             </div>
         `;
     }

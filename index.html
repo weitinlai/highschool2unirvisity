@@ -73,6 +73,12 @@
             </div>
             <div class="university-content">
                 <div class="university-section-content">
+                    <h3>學校資訊</h3>
+                    <div id="universityMeta" class="meta-section">
+                        <!-- 學校統計資訊由 JavaScript 動態生成 -->
+                    </div>
+                </div>
+                <div class="university-section-content">
                     <h3>簡章資訊</h3>
                     <div id="universityInfo" class="info-section">
                         <!-- 大學資訊將由 JavaScript 動態生成 -->
@@ -147,6 +153,28 @@
                         <div class="form-group">
                             <label for="eventSchools">申請學校（每行一個）：</label>
                             <textarea id="eventSchools" name="schools" rows="3"></textarea>
+                        </div>
+                        <!-- 簡章說明 -->
+                        <div class="form-group brochure-section">
+                            <label>簡章說明</label>
+                            <div class="form-subgroup">
+                                <label for="brochureDescription" style="font-weight:500;color:#2c3e50;">文字說明：</label>
+                                <textarea id="brochureDescription" name="brochureDescription" rows="3" placeholder="輸入簡章重點說明"></textarea>
+                            </div>
+                            <div class="form-subgroup">
+                                <label style="font-weight:500;color:#2c3e50;">相關連結：</label>
+                                <div id="brochureLinks" class="brochure-links">
+                                    <!-- 連結列會由 JS 建立 -->
+                                </div>
+                                <button type="button" id="addLinkBtn" class="btn btn-secondary" style="margin-top:6px;">新增連結</button>
+                            </div>
+                            <div class="form-subgroup">
+                                <label for="brochureFiles" style="font-weight:500;color:#2c3e50;">附件檔案：</label>
+                                <input type="file" id="brochureFiles" name="brochureFiles" multiple />
+                                <div id="brochureFileList" class="brochure-files" style="margin-top:8px;">
+                                    <!-- 現有與待上傳附件列表 -->
+                                </div>
+                            </div>
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn btn-primary">儲存</button>

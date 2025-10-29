@@ -1268,6 +1268,21 @@ body {
     gap: 8px;
 }
 
+/* 簡章說明樣式 */
+.brochure-block {
+    margin-top: 18px;
+}
+.brochure-block h4 { margin-bottom: 8px; }
+.brochure-desc { color:#2c3e50; margin: 6px 0 10px; }
+.brochure-links-view ul, .brochure-files-view ul { margin: 6px 0 0; padding-left: 18px; }
+.link-item a, .file-item a { color:#3498db; text-decoration:none; }
+.link-item a:hover, .file-item a:hover { text-decoration:underline; }
+
+/* 編輯表單內的簡章區塊 */
+.brochure-section .link-row input { flex: 1; }
+.brochure-links .link-row { align-items:center; }
+.brochure-files .file-item { background:#f8f9fa; border:1px solid #ecf0f1; border-radius:6px; padding:6px 8px; }
+
 .school-tag {
     background: #ecf0f1;
     color: #2c3e50;
